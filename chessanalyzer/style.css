@@ -274,32 +274,16 @@ body {
 .eval-bar-track {
   flex: 1;
   width: 8px;
-  background: var(--red);  /* fond = noirs avantageux */
+  background: #e8e8e8;
   border-radius: 4px;
   overflow: hidden;
   position: relative;
   min-height: 200px;
 }
-.eval-bar-fill {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  background: var(--surf);        /* on cache avec du gris le haut = blancs */
-  transition: height .5s cubic-bezier(.4,0,.2,1);
-  border-radius: 4px 4px 0 0;
-}
-/* Astuce : la barre rouge représente les noirs (plein = tout rouge = noirs gagnent).
-   On superpose une zone grise depuis le haut qui représente les blancs.
-   height de .eval-bar-fill = % pour les NOIRS (100 - % blancs).
-   Quand blancs gagnent → fill petit → beaucoup de rouge visible en bas → non.
-   
-   Alternative propre : deux fills.
-   La barre background = blanc (#e0e0e0 clair), fill en rouge part du bas.
-*/
-.eval-bar-track { background: #e8e8e8; }
 .eval-bar-fill  {
   position: absolute;
   bottom: 0; left: 0; right: 0;
-  background: var(--surf);        /* remplissage sombre = avantage noir */
+  background: var(--surf);        
   transition: height .5s cubic-bezier(.4,0,.2,1);
   border-radius: 0 0 4px 4px;
 }
@@ -311,15 +295,138 @@ body {
   letter-spacing: -.02em;
 }
 
-/* ── Échiquier ── */
+/* ════════════════════════════════════════════════
+   ÉCHIQUIER (Amélioré & Épuré)
+════════════════════════════════════════════════ */
 .board-wrap {
-  border-radius: 8px;
+  position: relative; /* Indispensable pour le positionnement absolu des pièces */
+  border-radius: var(--radius);
   overflow: hidden;
   width: 400px;
   aspect-ratio: 1;
   flex-shrink: 0;
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  user-select: none;
 }
 @media (max-width: 500px) { .board-wrap { width: 100%; } }
+
+.square {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Palette élégante, froide et désaturée */
+.square.light {
+  background-color: #cbd5e1;
+  color: #64748b;
+}
+
+.square.dark {
+  background-color: #64748b;
+  color: #cbd5e1;
+}
+
+.coord {
+  position: absolute;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  pointer-events: none;
+  opacity: 0.85;
+}
+.coord-rank { top: 3px; left: 4px; }
+.coord-file { bottom: 1px; right: 4px; }
+
+.square.highlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(59, 130, 246, 0.35);
+  box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.8);
+  z-index: 1;
+}
+
+/* ════════════════════════════════════════════════
+   PIÈCES & ANIMATIONS (MAXIMUM)
+════════════════════════════════════════════════ */
+/* Structure requise en HTML :
+   Les pièces doivent être enfants directes de .board-wrap
+   et gérées via "transform: translate(X, Y)" depuis JS. 
+*/
+.piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12.5%; /* 1/8ème du plateau */
+  height: 12.5%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 2;
+  cursor: grab;
+  /* Optimisation et fluidité de la translation GPU */
+  will-change: transform;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Volume SVG */
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
+}
+
+/* État de survol */
+.piece:hover {
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+}
+
+/* État lorsqu'on clique / glisse la pièce */
+.piece:active, 
+.piece.dragging {
+  cursor: grabbing;
+  z-index: 10;
+  /* Important : on coupe la transition pour que la pièce suive la souris en temps réel */
+  transition: none;
+  filter: drop-shadow(0 14px 20px rgba(0, 0, 0, 0.7));
+  transform: scale(1.15); /* Légère élévation visuelle */
+}
+
+/* Indicateurs de mouvements légaux (les petits points/cercles de Chess.com/Lichess) */
+.hint-dot {
+  position: absolute;
+  width: 12.5%;
+  height: 12.5%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 3;
+}
+.hint-dot::after {
+  content: '';
+  width: 28%;
+  height: 28%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+}
+/* Indicateur de capture (cercle creux) */
+.hint-capture::after {
+  background: transparent;
+  border: 5px solid rgba(0, 0, 0, 0.25);
+  width: 85%;
+  height: 85%;
+  box-shadow: none;
+}
+
+
+/* ════════════════════════════════════════════════
+   RESTE DE L'UI
+════════════════════════════════════════════════ */
 
 /* Navigation */
 .nav-row { display: flex; align-items: center; gap: 6px; }
