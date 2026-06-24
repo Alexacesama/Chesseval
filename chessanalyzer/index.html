@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChessEval</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+
+  <!-- ══ IMPORT ══════════════════════════════════════════════════════════ -->
+  <div id="importView" class="import-view">
+
+    <header class="import-header">
+      <div class="badge"><span class="dot"></span>STOCKFISH WASM</div>
+      <h1 class="title">ChessEval</h1>
+      <p class="subtitle">Analysez vos parties PGN coup par coup</p>
+    </header>
+
+    <div class="import-body">
+      <!-- Drop zone -->
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".pgn">
+        <div class="drop-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="15" x2="12" y2="11"/><line x1="10" y1="13" x2="14" y2="13"/>
+          </svg>
+        </div>
+        <p class="drop-title">Glissez un fichier <code>.pgn</code></p>
+        <p class="drop-hint">ou <button class="link" onclick="document.getElementById('fileInput').click()">parcourir</button></p>
+      </div>
+
+      <div class="or-sep"><span>ou</span></div>
+
+      <!-- Paste zone -->
+      <textarea id="pgnPaste" class="pgn-area"
+        placeholder="Collez votre PGN ici...
+
+[Event &quot;Live Chess&quot;]
+[White &quot;Player1&quot;]
+[Black &quot;Player2&quot;]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 ..."></textarea>
+
+      <!-- Depth selector -->
+      <div class="depth-row">
+        <span class="depth-label">Profondeur Stockfish :</span>
+        <div class="depth-btns">
+          <button class="depth-btn" data-d="12" onclick="setDepth(12)">12 · Rapide</button>
+          <button class="depth-btn active" data-d="16" onclick="setDepth(16)">16 · Standard</button>
+          <button class="depth-btn" data-d="20" onclick="setDepth(20)">20 · Profond</button>
+        </div>
+      </div>
+
+      <button class="btn-go" id="btnGo" onclick="startAnalysis()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Lancer l'analyse
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ══ LOADING ═════════════════════════════════════════════════════════ -->
+  <div id="loadingView" class="loading-view hidden">
+    <div class="spin"></div>
+    <p class="load-text" id="loadText">Initialisation de Stockfish...</p>
+    <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+    <p class="load-sub" id="loadSub">0 / 0 coups</p>
+  </div>
+
+  <!-- ══ ANALYSIS ════════════════════════════════════════════════════════ -->
+  <div id="analysisView" class="analysis-view hidden">
+
+    <!-- Top bar -->
+    <div class="top-bar">
+      <div class="game-players" id="gamePlayers"></div>
+      <div class="top-actions">
+        <div class="depth-info" id="depthInfo"></div>
+        <button class="btn-reset" onclick="resetAll()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.1"/></svg>
+          Nouvelle partie
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar" id="statsBar"></div>
+
+    <!-- Main layout -->
+    <div class="main-layout">
+
+      <!-- Eval bar (vertical) + Board -->
+      <div class="board-section">
+        <div class="board-top-player" id="boardTopPlayer"></div>
+
+        <div class="board-and-eval">
+          <!-- Barre d'évaluation verticale -->
+          <div class="eval-bar-wrap">
+            <div class="eval-bar-track">
+              <div class="eval-bar-fill" id="evalBarFill"></div>
+            </div>
+            <span class="eval-score" id="evalScore">0.0</span>
+          </div>
+          <!-- Échiquier -->
+          <div class="board-wrap" id="boardWrap"></div>
+        </div>
+
+        <div class="board-bot-player" id="boardBotPlayer"></div>
+
+        <!-- Navigation -->
+        <div class="nav-row">
+          <button class="nav-btn" onclick="goTo(0)" title="Début">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+          </button>
+          <button class="nav-btn" onclick="step(-1)" title="Précédent">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+          </button>
+          <span class="nav-label" id="navLabel">Position initiale</span>
+          <button class="nav-btn" onclick="step(1)" title="Suivant">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+          </button>
+          <button class="nav-btn" onclick="goTo(-1)" title="Fin">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: eval chart + move table -->
+      <div class="right-section">
+
+        <!-- Eval chart -->
+        <div class="chart-card">
+          <div class="chart-legend">
+            <span class="leg"><span class="leg-dot blue"></span>Blancs</span>
+            <span class="leg"><span class="leg-dot red"></span>Noirs</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="evalChart"></canvas>
+            <div class="chart-cursor hidden" id="chartCursor"></div>
+          </div>
+        </div>
+
+        <!-- Move table -->
+        <div class="moves-card">
+          <div class="moves-toolbar">
+            <div class="filter-btns">
+              <button class="flt active" data-f="all"        onclick="setFilter('all')">Tous</button>
+              <button class="flt" data-f="blunder"           onclick="setFilter('blunder')">?? Gaffes</button>
+              <button class="flt" data-f="mistake"           onclick="setFilter('mistake')">? Erreurs</button>
+              <button class="flt" data-f="inaccuracy"        onclick="setFilter('inaccuracy')">?! Imprécisions</button>
+            </div>
+          </div>
+          <!-- En-tête du tableau -->
+          <div class="moves-head">
+            <span>#</span><span>Blanc</span><span>Score</span><span>Noir</span><span>Score</span>
+          </div>
+          <!-- Tableau paires de coups (comme lichess) -->
+          <div class="moves-table" id="movesTable"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="site-footer">CHESSEVAL · STOCKFISH WASM · LOCAL · NO SERVER</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="stockfish-loader.js"></script>
+<script src="engine.js"></script>
+<script src="board.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
