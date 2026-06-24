@@ -1,56 +1,94 @@
-# ChessEval — Instructions de déploiement
+# ♟️ ChessEval
 
-## ⚠️ ÉTAPE OBLIGATOIRE avant upload : télécharger Stockfish
+**Analysez vos parties d'échecs coup par coup, directement dans le navigateur.**
 
-Pour des raisons de sécurité (HTTP/HTTPS mixte sur EOHost), Stockfish doit être
-hébergé directement sur ton serveur plutôt que sur un CDN externe.
+ChessEval importe une partie au format PGN et l'analyse avec le moteur **Stockfish**, affiché sur un échiquier interactif avec une barre d'évaluation verticale et un tableau de coups détaillé — dans le même esprit que les outils d'analyse de lichess.org, en 100% local : aucun serveur, aucune API, aucune donnée envoyée nulle part.
 
-### 1. Télécharge ces 2 fichiers depuis ton navigateur (clic droit → Enregistrer la cible sous) :
-
-- https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/stockfish.wasm.js
-- https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/stockfish.wasm
-
-### 2. Renomme-les :
-
-| Fichier téléchargé        | Renommer en      |
-|----------------------------|-------------------|
-| stockfish.wasm.js          | stockfish.js      |
-| stockfish.wasm             | stockfish.wasm    |
-
-### 3. Place ces 2 fichiers renommés dans le même dossier que les autres
-(`chessanalyzer/`, à côté de `index.html`, `engine.js`, etc.)
+![Stockfish](https://img.shields.io/badge/Stockfish-WASM-blue) ![No Backend](https://img.shields.io/badge/Backend-None-red) ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
 ---
 
-## Fichiers de ce ZIP
+## ✨ Fonctionnalités
 
-| Fichier                  | Rôle                                                          |
-|---------------------------|----------------------------------------------------------------|
-| `index.html`               | Structure de la page                                          |
-| `style.css`                | Design (dark, bleu/rouge)                                     |
-| `app.js`                   | Logique UI : affichage, navigation, tableau de coups          |
-| `board.js`                 | Rendu de l'échiquier en SVG                                    |
-| `engine.js`                | **Corrigé** : évaluation Stockfish + classification des coups |
-| `stockfish-loader.js`      | **Modifié** : charge `stockfish.js` en local (plus de CDN)     |
+- 📋 **Import PGN** — glisser-déposer un fichier `.pgn` ou coller directement le texte
+- ♞ **Échiquier SVG** — pièces vectorielles, dernier coup surligné, coordonnées
+- 📊 **Barre d'évaluation verticale** — bascule en temps réel selon la position
+- 📈 **Courbe d'évaluation** — visualise les retournements de la partie, cliquable pour naviguer
+- 🏷️ **Classification des coups** — Brillant `!!`, Bon, Imprécision `?!`, Erreur `?`, Gaffe `??`
+- 📑 **Tableau de coups en paires** — format Blanc / Noir avec score à chaque demi-coup
+- 🎯 **Précision moyenne** — calculée pour chaque joueur
+- ⌨️ **Navigation clavier** — flèches ← → pour parcourir la partie
+- 🎚️ **Profondeur réglable** — rapide (12), standard (16), profond (20)
 
-## Upload final sur EOHost
+---
 
-Le dossier `chessanalyzer/` doit contenir **8 fichiers** au total :
-1. `index.html`
-2. `style.css`
-3. `app.js`
-4. `board.js`
-5. `engine.js`
-6. `stockfish-loader.js`
-7. `stockfish.js`       ← téléchargé à l'étape 1 (renommé)
-8. `stockfish.wasm`     ← téléchargé à l'étape 1 (renommé)
+## 🚀 Démo
 
-## Après upload
+Ouvre simplement `index.html` dans un navigateur — aucune installation requise.
 
-Recharge la page avec **Ctrl+F5** (rechargement forcé, vide le cache du navigateur)
-sur `http://marty.atwebpages.com/chessanalyzer/`
+👉 **[Voir en ligne](http://marty.atwebpages.com/chessanalyzer/)**
 
-## En cas de nouvelle erreur
+---
 
-Ouvre la console développeur (**F12 → Console**) et regarde le message d'erreur
-exact — il indique généralement quel fichier ne charge pas correctement.
+## 🛠️ Stack technique
+
+| Composant       | Rôle                                              |
+|------------------|----------------------------------------------------|
+| `index.html`     | Structure de la page                               |
+| `style.css`      | Design (thème sombre, accents bleu/rouge)          |
+| `app.js`         | Logique d'interface : navigation, rendu, filtres   |
+| `engine.js`      | Parsing PGN + pilotage de Stockfish                |
+| `board.js`       | Rendu de l'échiquier en SVG                        |
+| `stockfish-loader.js` | Chargement du moteur Stockfish (Web Worker)   |
+| `stockfish.js` / `stockfish.wasm` | Moteur Stockfish compilé en WebAssembly |
+
+Aucune dépendance backend : tout s'exécute côté client, dans un **Web Worker**, via **chess.js** pour la logique des règles et **Stockfish WASM** pour l'analyse.
+
+---
+
+## 📦 Installation
+
+```bash
+git clone https://github.com/Alexacesama/Chesseval.git
+cd Chesseval
+```
+
+Ouvre `index.html` dans ton navigateur, ou héberge le dossier sur n'importe quel serveur web statique (Apache, Nginx, GitHub Pages, EOHost...).
+
+> **Note :** Stockfish doit être servi depuis le même domaine que le site (voir `stockfish-loader.js`) pour éviter les erreurs de contenu mixte HTTP/HTTPS sur certains hébergeurs.
+
+---
+
+## 🎮 Utilisation
+
+1. Glisse un fichier `.pgn` ou colle le texte d'une partie
+2. Choisis la profondeur d'analyse Stockfish
+3. Clique sur **Lancer l'analyse**
+4. Navigue dans la partie avec les flèches, le tableau de coups, ou en cliquant sur la courbe d'évaluation
+
+---
+
+## 📐 Comment la qualité des coups est calculée
+
+Chaque position est évaluée par Stockfish avant et après le coup joué. La variation du score (`delta`), ramenée du point de vue du joueur qui vient de jouer, détermine la classification :
+
+| Badge | Catégorie     | Delta             |
+|-------|----------------|--------------------|
+| `!!`  | Brillant       | ≥ +0.15            |
+| —     | Meilleur coup  | ≥ -0.10             |
+| `⩲`   | Bon            | ≥ -0.50             |
+| `?!`  | Imprécision    | ≥ -1.50             |
+| `?`   | Erreur         | ≥ -3.00             |
+| `??`  | Gaffe          | < -3.00              |
+
+---
+
+## 📄 Licence
+
+Ce projet utilise le moteur [Stockfish](https://stockfishchess.org/) (GPL-3.0) et [chess.js](https://github.com/jhlywa/chess.js) (BSD-2-Clause) via CDN/fichiers locaux.
+
+Le code de l'interface (`app.js`, `board.js`, `engine.js`, `style.css`, `index.html`) est distribué sous licence MIT — libre d'utilisation, de modification et de redistribution.
+
+---
+
+<p align="center">Fait avec ♟️ par <strong>Alexandre Marty</strong> — IUT Blagnac, R&T</p>
